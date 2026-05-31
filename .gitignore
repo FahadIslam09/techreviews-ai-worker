@@ -1,0 +1,34 @@
+# Dependency directories
+node_modules/
+
+# Environment variables (⚠️ খুবই জরুরি, .env ফাইল যেন কোনোভাবেই গিটহাবে না যায়)
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Mac OS System Files
+.DS_Store
+
+# Editor directories and files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
