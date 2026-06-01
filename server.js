@@ -132,7 +132,7 @@ app.post('/api/generate-post', async (req, res) => {
         else throw new Error('Jina AI Server Error');
       } catch (e) {
         // 🚀 FIX: Silent error এর বদলে কাজ থামিয়ে ফ্রন্টএন্ডে মেসেজ পাঠানো হচ্ছে
-        throw new Error('Website blocked scraping. Please copy-paste the data in the "Raw Specs" box.'); 
+        throw new Error('Website blocked scraping. Please copy-paste the data in the "Raw Specs" box.');
       }
     }
 
@@ -212,7 +212,13 @@ Rules:
     let rawJsonText = await callOpenRouter(jsonPrompt, true, "deepseek/deepseek-v4-flash");
     rawJsonText = rawJsonText.replace(/```json|```/gi, '').trim();
     if (rawJsonText.toLowerCase().startsWith('json')) rawJsonText = rawJsonText.slice(4).trim();
-    const extractedData = JSON.parse(rawJsonText);
+    let extractedData;
+    try {
+      extractedData = JSON.parse(rawJsonText);
+    } catch (parseError) {
+      console.error("❌ [AI JSON ERROR] Raw Data:", rawJsonText); // রেন্ডার লগে ভুল JSON টি দেখাবে
+      throw new Error("AI generated an invalid JSON format. Please try generating again.");
+    }
 
     // 🚀 NEW: এই ৫টি লাইন server.js ফাইলে মিসিং ছিল, তাই ক্র্যাশ করছিল
     const focusKeyword = extractedData.metaData?.focusKeyword || targetName;
