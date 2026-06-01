@@ -130,7 +130,7 @@ app.post('/api/generate-post', async (req, res) => {
         });
         if (jinaRes.ok) scrapedSpecs = await jinaRes.text();
         else throw new Error('Jina AI Server Error');
-      } catch (e) { 
+      } catch (e) {
         // 🚀 FIX: Silent error এর বদলে কাজ থামিয়ে ফ্রন্টএন্ডে মেসেজ পাঠানো হচ্ছে
         throw new Error('Website blocked scraping. Please copy-paste the data in the "Raw Specs" box.'); 
       }
