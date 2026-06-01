@@ -75,7 +75,7 @@ app.post('/api/generate-post', async (req, res) => {
   const keepAlive = setInterval(() => { res.write(' '); }, 15000);
 
   try {
-    const { videoUrl, videoId, originalCreator, thumbnail, targetName, referenceUrl, rawSpecs } = req.body;
+    const { videoUrl, videoId, originalCreator, thumbnail, targetName, referenceUrl, rawSpecs, manualPrice } = req.body;
     if (!videoUrl) throw new Error('YouTube video URL is required.');
 
     let derivedVideoId = videoId;
@@ -136,9 +136,12 @@ app.post('/api/generate-post', async (req, res) => {
     // ৫. JSON Extraction (DeepSeek v4 Flash)
     const targetInstruction = targetName ? `\nCRITICAL INSTRUCTION: Use "${targetName}" as the 'deviceName'.\n` : '';
 
+    const priceInstruction = manualPrice ? `\nCRITICAL PRICE INSTRUCTION: The user has explicitly provided the official Bangladesh price as "${manualPrice}". You MUST use this exact price in the JSON 'Pricing' field. Ignore all other prices in the website or video.\n` : '';
+
     const jsonPrompt = `
 You are a precise data extraction engine. Analyze the following tech review transcript and competitor website data.
 ${targetInstruction}
+${priceInstruction}
 
 COMPETITOR WEBSITE DATA (From Jina AI or Raw Text):
 """
@@ -194,7 +197,7 @@ Rules:
 - 🚀 DYNAMIC FIELDS CAPTURE: Dynamically create new keys for EVERY SINGLE specification row found on the competitor website (e.g., 'Colors', 'Pixel Density', 'Notch', 'Ruggedness', 'Screen Protection'). Ensure 100% data coverage of the website.
 - 🚀 CAPTURE ALL VARIANTS: If a field has multiple values (e.g., "128GB 4GB RAM, 128GB 6GB RAM, 256GB 8GB RAM"), list ALL of them. Do not truncate!
 - 🚀 MULTIPLE PRICE VARIANTS: Extract ALL pricing variants separated by a pipe (|). Example: "4GB+128GB: BDT 18,999 | 6GB+128GB: BDT 21,999".
-- 🚀 PRICE FALLBACK: If the COMPETITOR WEBSITE DATA does not contain a Bangladesh price (as is often the case with GSMArena), deeply scan the YOUTUBE VIDEO TRANSCRIPT. If a local price is mentioned in BDT, Taka, or Tk, extract it and place it into the JSON Pricing field.
+- 🚀 STRICT CURRENCY FILTER & PRICE FALLBACK: If the user provided a manual price in the instructions, use it unconditionally. Otherwise, check the COMPETITOR WEBSITE DATA. CRITICAL: If the website contains prices in Indian Rupees (₹, INR), US Dollars ($), or Euros (€), YOU MUST REJECT THEM ENTIRELY. Do NOT use them. If the official Bangladesh price (BDT/Taka/Tk) is missing, deeply scan the YOUTUBE VIDEO TRANSCRIPT. Only extract the price if it is explicitly mentioned in BDT, Taka, or Tk. If no BD price is found anywhere, completely omit the price key or output "Not officially announced".
 - CRITICAL: DO NOT include any citation markers, reference brackets (e.g., [1]), or source links in the JSON values.
 - metaTitle MUST follow this exact format: "[Device Name] Price in Bangladesh 2026 | Review & Full Specs". focusKeyword MUST be the exact search query like "[Device Name] price in Bangladesh".
 - 🚀 FAQ GENERATION: You MUST generate 5 to 8 FAQ entries in 'faqData'. Questions should be real search queries users ask about this device (e.g., price, gaming performance, camera quality, battery life, comparison with competitors). Answers should be 2-3 sentences each, factual and concise. Write FAQs in the same language as the transcript.
