@@ -75,7 +75,7 @@ app.post('/api/generate-post', async (req, res) => {
   const keepAlive = setInterval(() => { res.write(' '); }, 15000);
 
   try {
-    const { videoUrl, videoId, originalCreator, thumbnail, targetName, referenceUrl } = req.body;
+    const { videoUrl, videoId, originalCreator, thumbnail, targetName, referenceUrl, rawSpecs } = req.body;
     if (!videoUrl) throw new Error('YouTube video URL is required.');
 
     let derivedVideoId = videoId;
@@ -121,7 +121,9 @@ app.post('/api/generate-post', async (req, res) => {
 
     // ৪. Jina AI Scraping
     let scrapedSpecs = "";
-    if (referenceUrl) {
+    if (rawSpecs) {
+      scrapedSpecs = rawSpecs;
+    } else if (referenceUrl) {
       try {
         const jinaRes = await fetch(`https://r.jina.ai/${referenceUrl}`, {
           headers: { "X-Return-Format": "markdown", "X-Timeout": "20", "X-Wait-For-Selector": "body" }
@@ -138,7 +140,7 @@ app.post('/api/generate-post', async (req, res) => {
 You are a precise data extraction engine. Analyze the following tech review transcript and competitor website data.
 ${targetInstruction}
 
-COMPETITOR WEBSITE DATA (From Jina AI):
+COMPETITOR WEBSITE DATA (From Jina AI or Raw Text):
 """
 ${scrapedSpecs ? scrapedSpecs : "No external data provided. Extract directly from the transcript and your knowledge."}
 """
@@ -192,6 +194,7 @@ Rules:
 - 🚀 DYNAMIC FIELDS CAPTURE: Dynamically create new keys for EVERY SINGLE specification row found on the competitor website (e.g., 'Colors', 'Pixel Density', 'Notch', 'Ruggedness', 'Screen Protection'). Ensure 100% data coverage of the website.
 - 🚀 CAPTURE ALL VARIANTS: If a field has multiple values (e.g., "128GB 4GB RAM, 128GB 6GB RAM, 256GB 8GB RAM"), list ALL of them. Do not truncate!
 - 🚀 MULTIPLE PRICE VARIANTS: Extract ALL pricing variants separated by a pipe (|). Example: "4GB+128GB: BDT 18,999 | 6GB+128GB: BDT 21,999".
+- 🚀 PRICE FALLBACK: If the COMPETITOR WEBSITE DATA does not contain a Bangladesh price (as is often the case with GSMArena), deeply scan the YOUTUBE VIDEO TRANSCRIPT. If a local price is mentioned in BDT, Taka, or Tk, extract it and place it into the JSON Pricing field.
 - CRITICAL: DO NOT include any citation markers, reference brackets (e.g., [1]), or source links in the JSON values.
 - metaTitle MUST follow this exact format: "[Device Name] Price in Bangladesh 2026 | Review & Full Specs". focusKeyword MUST be the exact search query like "[Device Name] price in Bangladesh".
 - 🚀 FAQ GENERATION: You MUST generate 5 to 8 FAQ entries in 'faqData'. Questions should be real search queries users ask about this device (e.g., price, gaming performance, camera quality, battery life, comparison with competitors). Answers should be 2-3 sentences each, factual and concise. Write FAQs in the same language as the transcript.
@@ -238,7 +241,7 @@ Article structure (use these exact H2 headings, and freely add H3 sub-headings):
 Writing style rules:
 - 🚀 AUDIENCE: Write for 12-15 year old readers. Use simple, conversational language. Short sentences. Avoid complex jargon — if you must use a technical term, briefly explain what it means in parentheses.
 - 🚀 ORIGINALITY: DO NOT copy the transcript's wording. Rewrite everything in your own voice. Use casual, friendly tone. Include personal-sounding opinions like "honestly, this surprised me" or "for most people, this will be more than enough".
-- 🚀 STRICT LANGUAGE: Write the article in ${isbengali ? 'Bengali (বাংলা)' : 'English'}. DO NOT output any Chinese, Mandarin, or other non-target language text. This is absolute.
+- 🚀 STRICT LANGUAGE: The entire article must be written in highly engaging and professional Bengali. Even if the YouTube transcript is in English or any other language, the final output must always be completely in Bengali.
 - 🚀 ENGLISH TECHNICAL TERMS (MOST CRITICAL RULE): ALL product names, brand names, model names, model numbers, chipset names, processor names, software names, UI names, OS names, app names, sensor names, display technology names, charging technology names, and ANY technical terminology MUST stay in their ORIGINAL ENGLISH form. NEVER transliterate them into Bengali script.
   ✅ CORRECT: "OnePlus Nord 6", "OxygenOS", "Snapdragon 8 Elite", "AMOLED", "Gorilla Glass", "LPDDR5X RAM", "UFS 4.0", "120Hz refresh rate", "IP68", "HDR10+", "Dolby Atmos", "50MP Sony IMX906 sensor"
   ❌ WRONG: "ওয়ানপ্লাস নর্ড ৬", "অক্সিজেন ওএস", "স্ন্যাপড্রাগন ৮ এলিট", "অ্যামোলেড", "গরিলা গ্লাস"
