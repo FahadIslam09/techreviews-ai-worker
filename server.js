@@ -205,6 +205,13 @@ Rules:
     if (rawJsonText.toLowerCase().startsWith('json')) rawJsonText = rawJsonText.slice(4).trim();
     const extractedData = JSON.parse(rawJsonText);
 
+    // 🚀 NEW: এই ৫টি লাইন server.js ফাইলে মিসিং ছিল, তাই ক্র্যাশ করছিল
+    const focusKeyword = extractedData.metaData?.focusKeyword || targetName;
+    const deviceName = targetName || extractedData.deviceName || 'this device';
+    const reviewLanguage = extractedData.reviewLanguage || 'English';
+    const isbengali = reviewLanguage.toLowerCase().includes('bengali');
+    const fetchedPrice = extractedData.fullSpecifications?.Pricing?.["Price in Bangladesh"] || 'Not officially announced';
+
     const reviewPrompt = `
 You are a passionate tech enthusiast and experienced smartphone reviewer who writes for a Bangladeshi tech blog.
 Your job is to write an ORIGINAL, DETAILED review article about the ${deviceName}.
