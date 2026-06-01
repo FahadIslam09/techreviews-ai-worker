@@ -284,4 +284,10 @@ ${cleanedTranscript}
 });
 
 const PORT = process.env.PORT || 10000;
+
+// ── Health Check Route ──
+app.get('/', (req, res) => {
+  res.status(200).json({ status: 'success', message: 'AI Microservice is running perfectly! 🚀' });
+});
+
 app.listen(PORT, () => console.log(`🚀 AI Worker running on port ${PORT}`));
