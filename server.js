@@ -312,4 +312,46 @@ app.get('/', (req, res) => {
   res.status(200).json({ status: 'success', message: 'AI Microservice is running perfectly! 🚀' });
 });
 
+app.post('/api/custom-generate', async (req, res) => {
+  if (req.headers['x-api-key'] !== process.env.MICROSERVICE_API_KEY) {
+    return res.status(401).json({ error: 'Unauthorized Access' });
+  }
+
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Transfer-Encoding', 'chunked');
+  const keepAlive = setInterval(() => { res.write(' '); }, 15000);
+
+  try {
+    const { title, prompt } = req.body;
+    if (!prompt) throw new Error('Prompt is required.');
+
+    const systemPrompt = `
+You are an expert tech blogger for a Bangladeshi audience.
+Write an engaging, SEO-optimized, detailed tech article in Bengali based on the user's instructions.
+
+Topic/Instructions: "${prompt}"
+${title ? `Suggested Title: "${title}"` : ""}
+
+Rules:
+- Write ENTIRELY in professional Bengali.
+- Keep technical terms (Brands, Processors, OS, UI, Sensors) in their original English form. NEVER transliterate them into Bengali script.
+- Format output in Markdown. Use H2 (##) and H3 (###) for structure.
+- Do NOT include frontmatter or markdown code block fences (\`\`\`markdown). Output the raw markdown text directly.
+- Ensure the article is detailed, informative, and engaging for tech enthusiasts.
+`.trim();
+
+    let markdownContent = await callOpenRouter(systemPrompt, false, "deepseek/deepseek-v4-pro");
+    markdownContent = markdownContent.replace(/\[cite[^\]]*\]/gi, '').trim();
+
+    clearInterval(keepAlive);
+    res.write(JSON.stringify({ success: true, content: markdownContent }));
+    res.end();
+
+  } catch (error) {
+    clearInterval(keepAlive);
+    res.write(JSON.stringify({ error: error.message || 'Server Error' }));
+    res.end();
+  }
+});
+
 app.listen(PORT, () => console.log(`🚀 AI Worker running on port ${PORT}`));
