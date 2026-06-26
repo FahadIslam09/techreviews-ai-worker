@@ -139,7 +139,7 @@ app.post('/api/generate-post', async (req, res) => {
     // ৫. JSON Extraction (DeepSeek v4 Flash)
     const targetInstruction = targetName ? `\nCRITICAL INSTRUCTION: Use "${targetName}" as the 'deviceName'.\n` : '';
 
-    const priceInstruction = manualPrice ? `\nCRITICAL PRICE INSTRUCTION: The user has explicitly provided the official Bangladesh price as "${manualPrice}". You MUST use this exact price in the JSON 'Pricing.priceVariants' array. Ignore all other prices in the website or video.\n` : '';
+    const priceInstruction = manualPrice ? `\nCRITICAL PRICE INSTRUCTION: The user has provided the following price data. Parse it into the 'Pricing.priceVariants' array. The first line may be a header (ignore it). Each subsequent line is a variant with ram, storage, and price. If the header or data mentions "Official", set type to "Official". If it mentions "Unofficial", set type to "Unofficial". Extract all variants.\nUSER PRICE DATA:\n"""\n${manualPrice}\n"""\n` : '';
 
     const jsonPrompt = `
 You are a precise data extraction engine. Analyze the following tech review transcript and competitor website data.
