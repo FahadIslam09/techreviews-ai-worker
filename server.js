@@ -139,7 +139,7 @@ app.post('/api/generate-post', async (req, res) => {
     // ৫. JSON Extraction (DeepSeek v4 Flash)
     const targetInstruction = targetName ? `\nCRITICAL INSTRUCTION: Use "${targetName}" as the 'deviceName'.\n` : '';
 
-    const priceInstruction = manualPrice ? `\nCRITICAL PRICE INSTRUCTION: The user has explicitly provided the official Bangladesh price as "${manualPrice}". You MUST use this exact price in the JSON 'Pricing' field. Ignore all other prices in the website or video.\n` : '';
+    const priceInstruction = manualPrice ? `\nCRITICAL PRICE INSTRUCTION: The user has explicitly provided the official Bangladesh price as "${manualPrice}". You MUST use this exact price in the JSON 'Pricing.priceVariants' array. Ignore all other prices in the website or video.\n` : '';
 
     const jsonPrompt = `
 You are a precise data extraction engine. Analyze the following tech review transcript and competitor website data.
@@ -174,7 +174,7 @@ For 'fullSpecifications', you MUST present the data in this highly-detailed NEST
     "Selfie Camera": { "Camera Setup": "...", "Resolution": "...", "Video Recording": "...", "<Add Any Other Field Found>": "..." },
     "Battery & Charging": { "Battery Type": "...", "Capacity": "...", "Fast Charging": "...", "Reverse Charging": "...", "<Add Any Other Field Found>": "..." },
     "Connectivity & Sensors": { "Network": "...", "Wi-Fi": "...", "Bluetooth": "...", "USB": "...", "Fingerprint Sensor": "...", "Audio Jack": "...", "<Add Any Other Field Found>": "..." },
-    "Pricing": { "Price in Bangladesh": "..." }
+    "Pricing": { "priceVariants": [{ "ram": "8GB", "storage": "256GB", "price": 32999, "currency": "BDT", "variant": "INT", "type": "Official" }] }
   },
   "prosCons": { "pros": ["...", "..."], "cons": ["...", "..."] },
   "performanceRatings": { "regularUsage": 8, "gaming": 8, "multitasking": 8, "thermalManagement": 8 },
@@ -199,7 +199,7 @@ Rules:
 - 🚀 DIMENSIONS SPLITTING: If the website says "Dimensions: 167.9 x 79.1 x 7.5 mm", you MUST split it and create distinct keys: 'Height': '167.9 mm', 'Width': '79.1 mm', 'Thickness': '7.5 mm'. Do this intelligently for any dimension format.
 - 🚀 DYNAMIC FIELDS CAPTURE: Dynamically create new keys for EVERY SINGLE specification row found on the competitor website (e.g., 'Colors', 'Pixel Density', 'Notch', 'Ruggedness', 'Screen Protection'). Ensure 100% data coverage of the website.
 - 🚀 CAPTURE ALL VARIANTS: If a field has multiple values (e.g., "128GB 4GB RAM, 128GB 6GB RAM, 256GB 8GB RAM"), list ALL of them. Do not truncate!
-- 🚀 MULTIPLE PRICE VARIANTS: Extract ALL pricing variants separated by a pipe (|). Example: "4GB+128GB: BDT 18,999 | 6GB+128GB: BDT 21,999".
+- 🚀 MULTIPLE PRICE VARIANTS: Extract ALL pricing variants into the 'priceVariants' array. Each variant must have: "ram" (e.g. "8GB"), "storage" (e.g. "256GB"), "price" (number, e.g. 32999), "currency" (always "BDT"), "variant" (e.g. "INT", "CN", "IND", or empty string if unknown), "type" (e.g. "Official", "Unofficial", or empty string if unknown).
 - 🚀 STRICT CURRENCY FILTER & PRICE FALLBACK: If the user provided a manual price in the instructions, use it unconditionally. Otherwise, check the COMPETITOR WEBSITE DATA. CRITICAL: If the website contains prices in Indian Rupees (₹, INR), US Dollars ($), or Euros (€), YOU MUST REJECT THEM ENTIRELY. Do NOT use them. If the official Bangladesh price (BDT/Taka/Tk) is missing, deeply scan the YOUTUBE VIDEO TRANSCRIPT. Only extract the price if it is explicitly mentioned in BDT, Taka, or Tk. If no BD price is found anywhere, completely omit the price key or output "Not officially announced".
 - CRITICAL: DO NOT include any citation markers, reference brackets (e.g., [1]), or source links in the JSON values.
 - metaTitle MUST follow this exact format: "[Device Name] Price in Bangladesh 2026 | Review & Full Specs". focusKeyword MUST be the exact search query like "[Device Name] price in Bangladesh".
@@ -225,7 +225,15 @@ Rules:
     const deviceName = targetName || extractedData.deviceName || 'this device';
     const reviewLanguage = extractedData.reviewLanguage || 'English';
     const isbengali = reviewLanguage.toLowerCase().includes('bengali');
-    const fetchedPrice = extractedData.fullSpecifications?.Pricing?.["Price in Bangladesh"] || 'Not officially announced';
+    const fetchedPriceVariants = extractedData.fullSpecifications?.Pricing?.priceVariants;
+    let fetchedPrice = 'Not officially announced';
+    if (Array.isArray(fetchedPriceVariants) && fetchedPriceVariants.length > 0) {
+      const prices = fetchedPriceVariants.map(v => v.price).filter(p => typeof p === 'number' && p > 0);
+      fetchedPrice = prices.length > 0 ? `BDT ${Math.min(...prices).toLocaleString()}` : 'Not officially announced';
+    } else {
+      const legacyPrice = extractedData.fullSpecifications?.Pricing?.["Price in Bangladesh"];
+      if (legacyPrice && typeof legacyPrice === 'string') fetchedPrice = legacyPrice;
+    }
 
     const reviewPrompt = `
 You are a passionate tech enthusiast and experienced smartphone reviewer who writes for a Bangladeshi tech blog.
