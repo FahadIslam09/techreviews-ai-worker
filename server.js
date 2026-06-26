@@ -40,23 +40,23 @@ function slugify(text) {
   return text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').trim();
 }
 
-async function callOpenRouter(prompt, isJson = false, modelName = "deepseek/deepseek-chat") {
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+// ── 🚀 Official DeepSeek API Function ──
+async function callDeepSeek(prompt, isJson = false, modelName = "deepseek-v4-flash") {
+  const response = await fetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": "https://techreviews.com",
-      "X-Title": "TechReviews Automation"
+      "Authorization": `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+      "Content-Type": "application/json"
     },
     body: JSON.stringify({
       model: modelName,
       messages: [{ role: "user", content: prompt }],
-      temperature: isJson ? 0.1 : 0.65
+      temperature: isJson ? 0.1 : 0.65,
+      response_format: isJson ? { type: "json_object" } : { type: "text" }
     })
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error?.message || "OpenRouter API failed.");
+  if (!response.ok) throw new Error(data.error?.message || "DeepSeek API failed.");
   return data.choices[0].message.content;
 }
 
@@ -209,7 +209,7 @@ Rules:
 - 🚀 ENGLISH TECHNICAL TERMS (CRITICAL FOR ALL OUTPUTS INCLUDING FAQs): ALL product names, brand names, model names, chipset names, software names, UI names, OS names, app names, feature names, and technical terms MUST remain in their original English form. NEVER transliterate them into Bengali or any other script. Examples: "OnePlus Nord 6" NOT "ওয়ানপ্লাস নর্ড ৬", "OxygenOS" NOT "অক্সিজেন ওএস", "Snapdragon 8 Elite" NOT "স্ন্যাপড্রাগন ৮ এলিট", "AMOLED" NOT "অ্যামোলেড".
 `.trim();
 
-    let rawJsonText = await callOpenRouter(jsonPrompt, true, "deepseek/deepseek-v4-flash");
+    let rawJsonText = await callDeepSeek(jsonPrompt, true, "deepseek-v4-flash");
     rawJsonText = rawJsonText.replace(/```json|```/gi, '').trim();
     if (rawJsonText.toLowerCase().startsWith('json')) rawJsonText = rawJsonText.slice(4).trim();
     let extractedData;
@@ -273,7 +273,7 @@ ${cleanedTranscript}
 """
 `.trim();
 
-    let markdownContent = await callOpenRouter(reviewPrompt, false, "deepseek/deepseek-v4-pro");
+    let markdownContent = await callDeepSeek(reviewPrompt, false, "deepseek-v4-pro");
     markdownContent = markdownContent.replace(/\[cite[^\]]*\]/gi, '').trim();
 
     // ৭. Save to MongoDB
@@ -340,7 +340,7 @@ Rules:
 - Ensure the article is detailed, informative, and engaging for tech enthusiasts.
 `.trim();
 
-    let markdownContent = await callOpenRouter(systemPrompt, false, "deepseek/deepseek-v4-pro");
+    let markdownContent = await callDeepSeek(systemPrompt, false, "deepseek-v4-pro");
     markdownContent = markdownContent.replace(/\[cite[^\]]*\]/gi, '').trim();
 
     clearInterval(keepAlive);
