@@ -228,7 +228,7 @@ Rules:
     const fetchedPriceVariants = extractedData.fullSpecifications?.Pricing?.priceVariants;
     let fetchedPrice = 'Not officially announced';
     if (Array.isArray(fetchedPriceVariants) && fetchedPriceVariants.length > 0) {
-      const prices = fetchedPriceVariants.map(v => v.price).filter(p => typeof p === 'number' && p > 0);
+      const prices = fetchedPriceVariants.map(v => typeof v.price === 'number' ? v.price : typeof v.price === 'string' ? parseInt(String(v.price).replace(/[^\d]/g, '')) : 0).filter(p => p > 0);
       fetchedPrice = prices.length > 0 ? `BDT ${Math.min(...prices).toLocaleString()}` : 'Not officially announced';
     } else {
       const legacyPrice = extractedData.fullSpecifications?.Pricing?.["Price in Bangladesh"];
