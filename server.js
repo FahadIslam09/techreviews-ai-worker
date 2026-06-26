@@ -289,6 +289,9 @@ ${cleanedTranscript}
     let slugCounter = 2;
     while (await Post.findOne({ slug })) { slug = `${slugify(extractedData.metaData.focusKeyword).substring(0, 80)}-${slugCounter++}`; }
 
+    const wordCount = markdownContent.split(/\s+/).filter(Boolean).length;
+    const readingTime = Math.max(2, Math.ceil(wordCount / 200));
+
     const newPost = new Post({
       title: extractedData.metaData.metaTitle, slug, content: markdownContent,
       quickSpecs: extractedData.quickSpecs, fullSpecifications: extractedData.fullSpecifications,
@@ -297,6 +300,7 @@ ${cleanedTranscript}
       videoId: derivedVideoId, originalCreator: originalCreator ?? 'Unknown',
       metaData: extractedData.metaData, faqData: extractedData.faqData || [],
       imageAltText: extractedData.imageAltText || '', status: 'Draft',
+      readingTime,
     });
 
     await newPost.save();

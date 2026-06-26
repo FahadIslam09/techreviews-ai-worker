@@ -33,6 +33,7 @@ const PostSchema = new mongoose.Schema(
     },
     faqData: { type: [{ question: { type: String }, answer: { type: String } }], default: [] },
     imageAltText: { type: String, default: '' },
+    readingTime: { type: Number, default: 3 },
     status: { type: String, enum: ['Draft', 'Published'], default: 'Draft' },
   },
   { timestamps: true }
