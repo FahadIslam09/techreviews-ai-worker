@@ -67,12 +67,19 @@ app.post('/api/generate-post', async (req, res) => {
     return res.status(401).json({ error: 'Unauthorized Access' });
   }
 
-  // ২. 🚀 HEARTBEAT MECHANISM (Render Timeout বাইপাস করার জন্য)
-  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-  res.setHeader('Transfer-Encoding', 'chunked');
+  // ২. SSE STREAMING (Server-Sent Events for real-time progress)
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
 
-  // প্রতি ১৫ সেকেন্ডে একটি 'Space' পাঠাবে যাতে সার্ভার বুঝতে পারে কাজ চলছে
-  const keepAlive = setInterval(() => { res.write(' '); }, 15000);
+  const sendEvent = (event, data) => {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  };
+
+  // Heartbeat to keep Render's proxy alive
+  const keepAlive = setInterval(() => { res.write(': heartbeat\n\n'); }, 15000);
 
   try {
     const { videoUrl, videoId, originalCreator, thumbnail, targetName, referenceUrl, rawSpecs, manualPrice } = req.body;
@@ -119,6 +126,8 @@ app.post('/api/generate-post', async (req, res) => {
     const cleanedTranscript = cleanTranscript(rawTranscript);
     if (cleanedTranscript.length < 200) throw new Error('Transcript is too short.');
 
+    sendEvent('phase', { phase: 1, status: 'complete', message: `Transcript ready: ${cleanedTranscript.split(/\s+/).length} words` });
+
     // ৪. Jina AI Scraping
     let scrapedSpecs = "";
     if (rawSpecs) {
@@ -131,10 +140,12 @@ app.post('/api/generate-post', async (req, res) => {
         if (jinaRes.ok) scrapedSpecs = await jinaRes.text();
         else throw new Error('Jina AI Server Error');
       } catch (e) {
-        // 🚀 FIX: Silent error এর বদলে কাজ থামিয়ে ফ্রন্টএন্ডে মেসেজ পাঠানো হচ্ছে
+        // 🚀 FIX: Silent error এর বদলে কাজ থামিয়ে ফ্রন্টএন্ডে মেসেজ পাঠানো হচ্ছে
         throw new Error('Website blocked scraping. Please copy-paste the data in the "Raw Specs" box.');
       }
     }
+
+    sendEvent('phase', { phase: 2, status: 'complete', message: `Specs scraped: ${scrapedSpecs.length} chars` });
 
     // ৫. JSON Extraction (DeepSeek v4 Flash)
     const targetInstruction = targetName ? `\nCRITICAL INSTRUCTION: Use "${targetName}" as the 'deviceName'.\n` : '';
@@ -220,6 +231,8 @@ Rules:
       throw new Error("AI generated an invalid JSON format. Please try generating again.");
     }
 
+    sendEvent('phase', { phase: 3, status: 'complete', message: 'JSON extracted successfully' });
+
     // 🚀 NEW: এই ৫টি লাইন server.js ফাইলে মিসিং ছিল, তাই ক্র্যাশ করছিল
     const focusKeyword = extractedData.metaData?.focusKeyword || targetName;
     const deviceName = targetName || extractedData.deviceName || 'this device';
@@ -284,6 +297,8 @@ ${cleanedTranscript}
     let markdownContent = await callDeepSeek(reviewPrompt, false, "deepseek-v4-pro");
     markdownContent = markdownContent.replace(/\[cite[^\]]*\]/gi, '').trim();
 
+    sendEvent('phase', { phase: 4, status: 'complete', message: `Article written: ${markdownContent.split(/\s+/).length} words` });
+
     // ৭. Save to MongoDB
     let slug = slugify(extractedData.metaData.focusKeyword).substring(0, 80);
     let slugCounter = 2;
@@ -307,12 +322,12 @@ ${cleanedTranscript}
 
     // 🚀 কাজ শেষ! হার্টবিট বন্ধ করে ফাইনাল রেসপন্স পাঠানো হচ্ছে
     clearInterval(keepAlive);
-    res.write(JSON.stringify({ success: true, message: 'Post generated!', postSlug: slug }));
+    sendEvent('done', { success: true, message: 'Post generated!', postSlug: slug, title: extractedData.metaData.metaTitle, wordCount, readingTime });
     res.end();
 
   } catch (error) {
     clearInterval(keepAlive);
-    res.write(JSON.stringify({ error: error.message || 'Server Error' }));
+    sendEvent('error', { error: error.message || 'Server Error' });
     res.end();
   }
 });
